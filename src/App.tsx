@@ -2,45 +2,41 @@
 import React, { useEffect, useState } from 'react';
 import { UserWarning } from './UserWarning';
 import { getTodos, USER_ID } from './api/todos';
-import { Todo } from './types/Todo';
+import { getFilteredTodos, Todo } from './types/Todo';
 import classNames from 'classnames';
+import { TodoStatusFilter } from './types/TodoStatusFilter';
 
 export const App: React.FC = () => {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [errorMessage, setErrorMessage] = useState('');
-  const [selectedFilter, setSelectedFilter] = useState('all');
+  const [selectedFilter, setSelectedFilter] = useState(TodoStatusFilter.ALL);
+
+  useEffect(() => {
+    if (!errorMessage) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setErrorMessage('');
+    }, 3000);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [errorMessage]);
 
   useEffect(() => {
     setErrorMessage('');
     getTodos()
-      .then(todosFromServer => {
-        setTodos(todosFromServer);
-      })
-      .catch(() => setErrorMessage('Unable to load todos'))
-      .finally(() => {
-        setTimeout(() => setErrorMessage(''), 3000);
-      });
+      .then(setTodos)
+      .catch(() => setErrorMessage('Unable to load todos'));
   }, []);
+
+  const filteredTodos = getFilteredTodos(todos, selectedFilter);
 
   if (!USER_ID) {
     return <UserWarning />;
   }
-
-  const filteredTodos = todos.filter(todo => {
-    if (selectedFilter === 'active') {
-      return !todo.completed;
-    }
-
-    if (selectedFilter === 'completed') {
-      return todo.completed;
-    }
-
-    return true;
-  });
-
-  const handleSelectCompleted = (value: string) => {
-    setSelectedFilter(value);
-  };
 
   return (
     <div className="todoapp">
@@ -67,7 +63,7 @@ export const App: React.FC = () => {
           </form>
         </header>
 
-        {todos.length > 0 && (
+        {filteredTodos.length !== 0 && (
           <section className="todoapp__main" data-cy="TodoList">
             {filteredTodos.map(todo => (
               <div
@@ -88,7 +84,6 @@ export const App: React.FC = () => {
                   {todo.title}
                 </span>
 
-                {/* Remove button appears only on hover */}
                 <button
                   type="button"
                   className="todo__remove"
@@ -125,15 +120,14 @@ export const App: React.FC = () => {
               {todos.filter(todo => !todo.completed).length} items left
             </span>
 
-            {/* Active link should have the 'selected' class */}
             <nav className="filter" data-cy="Filter">
               <a
                 href="#/"
                 className={classNames('filter__link', {
-                  selected: selectedFilter === 'all',
+                  selected: selectedFilter === TodoStatusFilter.ALL,
                 })}
                 data-cy="FilterLinkAll"
-                onClick={() => handleSelectCompleted('all')}
+                onClick={() => setSelectedFilter(TodoStatusFilter.ALL)}
               >
                 All
               </a>
@@ -141,10 +135,10 @@ export const App: React.FC = () => {
               <a
                 href="#/active"
                 className={classNames('filter__link', {
-                  selected: selectedFilter === 'active',
+                  selected: selectedFilter === TodoStatusFilter.ACTIVE,
                 })}
                 data-cy="FilterLinkActive"
-                onClick={() => handleSelectCompleted('active')}
+                onClick={() => setSelectedFilter(TodoStatusFilter.ACTIVE)}
               >
                 Active
               </a>
@@ -152,10 +146,10 @@ export const App: React.FC = () => {
               <a
                 href="#/completed"
                 className={classNames('filter__link', {
-                  selected: selectedFilter === 'completed',
+                  selected: selectedFilter === TodoStatusFilter.COMPLETED,
                 })}
                 data-cy="FilterLinkCompleted"
-                onClick={() => handleSelectCompleted('completed')}
+                onClick={() => setSelectedFilter(TodoStatusFilter.COMPLETED)}
               >
                 Completed
               </a>
